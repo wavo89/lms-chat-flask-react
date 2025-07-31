@@ -1,7 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from flask_bcrypt import Bcrypt
-from datetime import datetime
+from datetime import datetime, date
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()
@@ -53,4 +53,46 @@ class User(UserMixin, db.Model):
         return self.role == 'admin'
 
     def __repr__(self):
-        return f'<User {self.email}>' 
+        return f'<User {self.email}>'
+
+
+class AttendanceRecord(db.Model):
+    __tablename__ = 'attendance_records'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.Date, nullable=False)
+    status = db.Column(db.String(10), nullable=False)  # 'present', 'absent', 'tardy', 'excused'
+    student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    teacher_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    student = db.relationship('User', foreign_keys=[student_id], backref='attendance_as_student')
+    teacher = db.relationship('User', foreign_keys=[teacher_id], backref='attendance_as_teacher')
+    
+    # Unique constraint: one record per student per date
+    __table_args__ = (db.UniqueConstraint('student_id', 'date', name='unique_student_date'),)
+    
+    def to_dict(self):
+        """Convert attendance record to dictionary for JSON serialization."""
+        return {
+            'id': self.id,
+            'date': self.date.isoformat() if self.date else None,
+            'status': self.status,
+            'student_id': self.student_id,
+            'teacher_id': self.teacher_id,
+            'student_name': self.student.name if self.student else None,
+            'student_student_id': self.student.student_id if self.student else None,
+            'teacher_name': self.teacher.name if self.teacher else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+    
+    @staticmethod
+    def get_valid_statuses():
+        """Get list of valid attendance statuses."""
+        return ['present', 'absent', 'tardy', 'excused']
+    
+    def __repr__(self):
+        return f'<AttendanceRecord {self.student_id} on {self.date}: {self.status}>' 

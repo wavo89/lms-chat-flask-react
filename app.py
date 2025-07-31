@@ -1,10 +1,12 @@
 from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from functools import wraps
 import os
+from datetime import datetime, date
 from openai import OpenAI
 from config import Config
-from models import db, bcrypt, User
+from models import db, bcrypt, User, AttendanceRecord
 
 app = Flask(__name__, static_folder='frontend/build')
 app.config.from_object(Config)
@@ -25,6 +27,15 @@ login_manager.login_view = 'login'
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# Authorization decorator
+def teacher_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_teacher() and not current_user.is_admin():
+            return jsonify({"error": "Teacher access required"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 # Sample data (keep for compatibility)
 users_data = [
@@ -176,6 +187,117 @@ def create_user():
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "healthy", "timestamp": "2024-01-01T00:00:00Z"})
+
+# Attendance Routes
+@app.route('/api/attendance', methods=['GET'])
+@login_required
+@teacher_required
+def get_attendance():
+    date_str = request.args.get('date')
+    if not date_str:
+        date_str = date.today().isoformat()
+    
+    try:
+        attendance_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    # Get all students
+    students = User.query.filter_by(role='student').order_by(User.student_id).all()
+    
+    # Get existing attendance records for this date
+    records = AttendanceRecord.query.filter_by(date=attendance_date).all()
+    records_dict = {record.student_id: record for record in records}
+    
+    # Build response with students and their attendance status
+    attendance_data = []
+    for student in students:
+        record = records_dict.get(student.id)
+        attendance_data.append({
+            'student_id': student.id,
+            'student_student_id': student.student_id,
+            'name': student.name,
+            'email': student.email,
+            'status': record.status if record else '',
+            'record_id': record.id if record else None
+        })
+    
+    return jsonify({
+        "date": date_str,
+        "attendance": attendance_data,
+        "count": len(attendance_data)
+    })
+
+@app.route('/api/attendance', methods=['POST'])
+@login_required
+@teacher_required
+def save_attendance():
+    data = request.get_json()
+    if not data or 'date' not in data or 'records' not in data:
+        return jsonify({"error": "Date and records are required"}), 400
+    
+    try:
+        attendance_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD"}), 400
+    
+    valid_statuses = AttendanceRecord.get_valid_statuses()
+    records_data = data['records']
+    
+    saved_records = []
+    errors = []
+    
+    for record_data in records_data:
+        student_id = record_data.get('student_id')
+        status = record_data.get('status', '').lower()
+        
+        # Skip empty statuses
+        if not status:
+            continue
+            
+        if status not in valid_statuses:
+            errors.append(f"Invalid status '{status}' for student {student_id}")
+            continue
+        
+        # Check if student exists
+        student = User.query.filter_by(id=student_id, role='student').first()
+        if not student:
+            errors.append(f"Student {student_id} not found")
+            continue
+        
+        # Create or update attendance record
+        existing_record = AttendanceRecord.query.filter_by(
+            student_id=student_id, 
+            date=attendance_date
+        ).first()
+        
+        if existing_record:
+            existing_record.status = status
+            existing_record.teacher_id = current_user.id
+            existing_record.updated_at = datetime.utcnow()
+            record = existing_record
+        else:
+            record = AttendanceRecord(
+                date=attendance_date,
+                status=status,
+                student_id=student_id,
+                teacher_id=current_user.id
+            )
+            db.session.add(record)
+        
+        saved_records.append(record)
+    
+    try:
+        db.session.commit()
+        return jsonify({
+            "message": f"Saved {len(saved_records)} attendance records",
+            "saved_count": len(saved_records),
+            "errors": errors,
+            "date": data['date']
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Failed to save attendance: {str(e)}"}), 500
 
 @app.route('/api/chat', methods=['POST'])
 @login_required
