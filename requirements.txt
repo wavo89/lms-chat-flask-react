@@ -9,6 +9,7 @@ psycopg2-binary==2.9.7
 python-dotenv==1.0.0
 SQLAlchemy==2.0.21
 openai>=1.0.0
+requests>=2.25.0
 importlib_metadata==8.7.0
 itsdangerous==2.2.0
 Jinja2==3.1.6

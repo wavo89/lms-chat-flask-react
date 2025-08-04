@@ -16,7 +16,14 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: `Hello ${currentUser.name}! I'm your AI assistant. How can I help you with your learning management today?`,
+      content: `Hello ${currentUser.name}! I'm your AI assistant with access to real-time attendance data. You can ask me things like:
+
+• "Who has attendance issues?"
+• "Show me Alice's attendance record"  
+• "What are the attendance trends this week?"
+• "Which students are frequently tardy?"
+
+How can I help you today?`,
       sender: 'ai',
       timestamp: new Date()
     }
@@ -104,7 +111,7 @@ const Chat: React.FC<ChatProps> = ({ currentUser }) => {
     <div className="chat-container">
       <div className="chat-header">
         <h3>🤖 AI Assistant</h3>
-        <p>Ask questions about your courses</p>
+        <p>Ask about attendance data & student insights</p>
       </div>
 
       <div className="chat-messages">

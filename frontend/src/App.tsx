@@ -3,6 +3,7 @@ import './App.css';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import Chat from './components/Chat';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 interface User {
   id: number;
@@ -72,29 +73,37 @@ function App() {
     setIsRegisterMode(!isRegisterMode);
   };
 
-  if (loading) return <div className="loading">Loading...</div>;
+  if (loading) return (
+    <ThemeProvider>
+      <div className="loading">Loading...</div>
+    </ThemeProvider>
+  );
   
   if (!isAuthenticated) {
     return (
-      <Login 
-        onLogin={handleLogin} 
-        onToggleMode={toggleRegisterMode}
-        isRegisterMode={isRegisterMode}
-      />
+      <ThemeProvider>
+        <Login 
+          onLogin={handleLogin} 
+          onToggleMode={toggleRegisterMode}
+          isRegisterMode={isRegisterMode}
+        />
+      </ThemeProvider>
     );
   }
 
   return (
-    <div className="App">
-      <div className="app-layout">
-        <div className="dashboard-area">
-          <Dashboard currentUser={currentUser!} onLogout={handleLogout} />
-        </div>
-        <div className="chat-area">
-          <Chat currentUser={currentUser!} />
+    <ThemeProvider>
+      <div className="App">
+        <div className="app-layout">
+          <div className="dashboard-area">
+            <Dashboard currentUser={currentUser!} onLogout={handleLogout} />
+          </div>
+          <div className="chat-area">
+            <Chat currentUser={currentUser!} />
+          </div>
         </div>
       </div>
-    </div>
+    </ThemeProvider>
   );
 }
 

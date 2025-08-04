@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Dashboard.css';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface User {
   id: number;
@@ -28,8 +29,57 @@ interface AttendanceRow {
 
 interface AttendanceResponse {
   date: string;
+  class_id?: number;
+  class_name?: string;
   attendance: AttendanceRow[];
   count: number;
+}
+
+interface Class {
+  id: number;
+  name: string;
+  description?: string;
+  teacher_id: number;
+  teacher_name?: string;
+  student_count: number;
+  is_active: boolean;
+}
+
+interface Assignment {
+  id: number;
+  name: string;
+  description?: string;
+  class_id: number;
+  class_name?: string;
+  max_points: number;
+  due_date?: string;
+  assignment_type: string;
+}
+
+interface Grade {
+  id: number;
+  student_id: number;
+  assignment_id: number;
+  student_name?: string;
+  student_student_id?: string;
+  assignment_name?: string;
+  assignment_max_points?: number;
+  points_earned?: number;
+  percentage?: number;
+  letter_grade?: string;
+  comments?: string;
+}
+
+interface GradesResponse {
+  class: Class;
+  assignments: Assignment[];
+  students: Array<{
+    id: number;
+    name: string;
+    student_id: string;
+    grades: { [assignment_id: number]: Grade };
+  }>;
+  grades: { [student_id: number]: { [assignment_id: number]: Grade } };
 }
 
 interface DashboardProps {
@@ -38,6 +88,7 @@ interface DashboardProps {
 }
 
 const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
+  const { theme, isDark, toggleTheme } = useTheme();
   const [activeTab, setActiveTab] = useState('attendance');
   const [students, setStudents] = useState<User[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRow[]>([]);
@@ -45,7 +96,15 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newStudent, setNewStudent] = useState({ name: '', email: '', student_id: '' });
-  const [saving, setSaving] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<AttendanceRow | null>(null);
+  const [isVerified, setIsVerified] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [selectedClass, setSelectedClass] = useState<number | null>(null);
+  const [selectedGradeClass, setSelectedGradeClass] = useState<number | null>(null);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [gradesData, setGradesData] = useState<GradesResponse | null>(null);
+  const [loadingGrades, setLoadingGrades] = useState(false);
 
   const API_BASE = process.env.NODE_ENV === 'development' ? '' : 'http://localhost:5001';
   const isTeacher = currentUser.role === 'teacher' || currentUser.role === 'admin';
@@ -53,12 +112,27 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
   useEffect(() => {
     if (activeTab === 'attendance') {
       if (isTeacher) {
+        setIsVerified(false); // Reset verification status when date/class changes
         fetchAttendance();
       } else {
         fetchStudents();
       }
     }
-  }, [activeTab, selectedDate, isTeacher]);
+  }, [activeTab, selectedDate, selectedClass, isTeacher]);
+
+  useEffect(() => {
+    // Fetch classes when component mounts
+    fetchClasses();
+  }, []);
+
+  useEffect(() => {
+    // Fetch grades when grade class changes
+    if (selectedGradeClass) {
+      fetchGrades(selectedGradeClass);
+    } else {
+      setGradesData(null);
+    }
+  }, [selectedGradeClass]);
 
   const fetchStudents = async () => {
     try {
@@ -79,17 +153,94 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
     }
   };
 
+  const fetchClasses = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/classes`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch classes');
+      }
+      const data: Class[] = await response.json();
+      setClasses(data);
+    } catch (err) {
+      console.error('Error fetching classes:', err);
+    }
+  };
+
+  const fetchGrades = async (classId: number) => {
+    try {
+      setLoadingGrades(true);
+      const response = await fetch(`${API_BASE}/api/classes/${classId}/grades`, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to fetch grades');
+      }
+      const data: GradesResponse = await response.json();
+      setGradesData(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch grades');
+      setGradesData(null);
+    } finally {
+      setLoadingGrades(false);
+    }
+  };
+
+  const updateGrade = async (gradeId: number, pointsEarned: number | null) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/grades/${gradeId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          points_earned: pointsEarned
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update grade');
+      }
+
+      // Refresh grades data
+      if (selectedGradeClass) {
+        await fetchGrades(selectedGradeClass);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update grade');
+    }
+  };
+
   const fetchAttendance = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE}/api/attendance?date=${selectedDate}`, {
+      const classParam = selectedClass ? `&class_id=${selectedClass}` : '';
+      const response = await fetch(`${API_BASE}/api/attendance?date=${selectedDate}${classParam}`, {
         credentials: 'include',
       });
       if (!response.ok) {
         throw new Error('Failed to fetch attendance');
       }
       const data: AttendanceResponse = await response.json();
-      setAttendance(data.attendance);
+      
+      // Check if attendance is verified for this date
+      const verified = data.attendance.some(row => row.record_id);
+      setIsVerified(verified);
+      
+      // If not verified, set all students to 'present' by default
+      if (!verified) {
+        const attendanceWithDefaults = data.attendance.map(row => ({
+          ...row,
+          status: 'present'
+        }));
+        setAttendance(attendanceWithDefaults);
+      } else {
+        setAttendance(data.attendance);
+      }
+      
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
@@ -98,25 +249,68 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
     }
   };
 
-  const handleAttendanceChange = (studentId: number, status: string) => {
+  const toggleAttendanceStatus = async (studentId: number) => {
+    const currentRow = attendance.find(row => row.student_id === studentId);
+    if (!currentRow) return;
+
+    // Cycle through statuses: present -> absent -> tardy -> excused -> present
+    const statusCycle = ['present', 'absent', 'tardy', 'excused'];
+    const currentIndex = statusCycle.indexOf(currentRow.status);
+    // If status is not found (empty/undefined), start at -1 so next will be 0 (present)
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % statusCycle.length;
+    const nextStatus = statusCycle[nextIndex];
+
+    // Update local state immediately
     setAttendance(prev => 
       prev.map(row => 
         row.student_id === studentId 
-          ? { ...row, status } 
+          ? { ...row, status: nextStatus } 
           : row
       )
     );
+
+    // Auto-save to backend only if already verified
+    if (isVerified) {
+      try {
+        const response = await fetch(`${API_BASE}/api/attendance`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            date: selectedDate,
+            records: [{
+              student_id: studentId,
+              status: nextStatus
+            }]
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to save attendance');
+        }
+      } catch (err) {
+        console.error('Error saving attendance:', err);
+        // Revert the change if save failed
+        setAttendance(prev => 
+          prev.map(row => 
+            row.student_id === studentId 
+              ? { ...row, status: currentRow.status } 
+              : row
+          )
+        );
+      }
+    }
   };
 
-  const saveAttendance = async () => {
+  const verifyAttendance = async () => {
     try {
-      setSaving(true);
-      const records = attendance
-        .filter(row => row.status) // Only save rows with status
-        .map(row => ({
-          student_id: row.student_id,
-          status: row.status
-        }));
+      setIsVerifying(true);
+      const records = attendance.map(row => ({
+        student_id: row.student_id,
+        status: row.status
+      }));
 
       const response = await fetch(`${API_BASE}/api/attendance`, {
         method: 'POST',
@@ -126,23 +320,40 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
         credentials: 'include',
         body: JSON.stringify({
           date: selectedDate,
+          class_id: selectedClass,
           records: records
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save attendance');
+        throw new Error('Failed to verify attendance');
       }
 
-      const result = await response.json();
-      alert(`Saved ${result.saved_count} attendance records!`);
-      fetchAttendance(); // Refresh data
+      setIsVerified(true);
+      // Refresh attendance to get record IDs
+      fetchAttendance();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save attendance');
+      setError(err instanceof Error ? err.message : 'Failed to verify attendance');
     } finally {
-      setSaving(false);
+      setIsVerifying(false);
     }
   };
+
+  const handleStudentInfoClick = (student: AttendanceRow) => {
+    setSelectedStudent(student);
+  };
+
+  const getStatusDisplay = (status: string) => {
+    switch (status) {
+      case 'present': return { letter: 'P', color: theme.statusPresent };
+      case 'absent': return { letter: 'A', color: theme.statusAbsent };
+      case 'tardy': return { letter: 'T', color: theme.statusTardy };
+      case 'excused': return { letter: 'E', color: theme.statusExcused };
+      default: return { letter: '-', color: theme.statusUnset };
+    }
+  };
+
+
 
   const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,70 +391,130 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
         if (isTeacher) {
           return (
             <div className="tab-content">
-              <div className="content-header">
-                <h2>Daily Attendance</h2>
-                <p>Mark student attendance for the selected date</p>
+              <div className="secondary-nav">
+                <div className="secondary-nav-inner">
+                  <h2>Daily Attendance</h2>
+                  <div className="nav-controls">
+                    <div className="class-selector">
+                      <select
+                        value={selectedClass || ''}
+                        onChange={(e) => setSelectedClass(e.target.value ? parseInt(e.target.value) : null)}
+                      >
+                        <option value="">All Students</option>
+                        {classes.map(cls => (
+                          <option key={cls.id} value={cls.id}>
+                            {cls.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="date-selector">
+                      <input
+                        type="date"
+                        id="attendance-date"
+                        value={selectedDate}
+                        onChange={(e) => setSelectedDate(e.target.value)}
+                      />
+                    </div>
+                    <button 
+                      className={`verify-button ${isVerified ? 'verified' : ''}`}
+                      onClick={verifyAttendance}
+                      disabled={isVerified || isVerifying}
+                    >
+                      {isVerifying ? 'Verifying...' : isVerified ? 'Verified ✓' : 'Verify'}
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              <div className="attendance-controls">
-                <div className="date-selector">
-                  <label htmlFor="attendance-date">Date:</label>
-                  <input
-                    type="date"
-                    id="attendance-date"
-                    value={selectedDate}
-                    onChange={(e) => setSelectedDate(e.target.value)}
-                  />
+              <div className="content-area">
+                <div className="attendance-layout">
+                  <div className="attendance-table-section">
+                  {loading ? (
+                    <div className="loading-state">Loading attendance...</div>
+                  ) : error ? (
+                    <div className="error-state">Error: {error}</div>
+                  ) : (
+                    <div className="attendance-table-container">
+                      <table className="attendance-table">
+                        <thead>
+                          <tr>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Info</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {attendance.map((row) => {
+                            const statusDisplay = getStatusDisplay(row.status);
+                            return (
+                              <tr 
+                                key={row.student_id}
+                                className="attendance-row"
+                                onClick={() => toggleAttendanceStatus(row.student_id)}
+                              >
+                                <td className="name-cell">
+                                  {row.name}
+                                </td>
+                                <td className="status-cell">
+                                  <span 
+                                    className="status-letter"
+                                    style={{ color: statusDisplay.color }}
+                                  >
+                                    {statusDisplay.letter}
+                                  </span>
+                                </td>
+                                <td className="info-cell">
+                                  <button 
+                                    className="info-button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStudentInfoClick(row);
+                                    }}
+                                    title="View student info"
+                                  >
+                                    <span className="info-icon">ⓘ</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-                <button 
-                  onClick={saveAttendance} 
-                  disabled={saving}
-                  className="save-attendance-button"
-                >
-                  {saving ? 'Saving...' : 'Save Attendance'}
-                </button>
-              </div>
 
-              {loading ? (
-                <div className="loading-state">Loading attendance...</div>
-              ) : error ? (
-                <div className="error-state">Error: {error}</div>
-              ) : (
-                <div className="attendance-table-container">
-                  <table className="attendance-table">
-                    <thead>
-                      <tr>
-                        <th>Student ID</th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {attendance.map((row) => (
-                        <tr key={row.student_id}>
-                          <td>{row.student_student_id}</td>
-                          <td>{row.name}</td>
-                          <td>{row.email}</td>
-                          <td>
-                            <select
-                              value={row.status}
-                              onChange={(e) => handleAttendanceChange(row.student_id, e.target.value)}
-                              className="status-select"
-                            >
-                              <option value="">Select...</option>
-                              <option value="present">Present</option>
-                              <option value="absent">Absent</option>
-                              <option value="tardy">Tardy</option>
-                              <option value="excused">Excused</option>
-                            </select>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="student-info-panel">
+                  <div className="info-panel-header">
+                    <h3>Student Information</h3>
+                  </div>
+                  <div className="info-panel-content">
+                    {selectedStudent ? (
+                      <div className="student-details">
+                        <div className="detail-item">
+                          <label>Name:</label>
+                          <span>{selectedStudent.name}</span>
+                        </div>
+                        <div className="detail-item">
+                          <label>Student ID:</label>
+                          <span>{selectedStudent.student_student_id}</span>
+                        </div>
+                        <div className="detail-item">
+                          <label>Email:</label>
+                          <span>{selectedStudent.email}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="no-student-selected">
+                        <p>No student selected</p>
+                        <small>Click the info button (ⓘ) next to a student to view their details</small>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
+              </div>
+              </div>
             </div>
           );
         } else {
@@ -310,20 +581,92 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
       case 'grades':
         return (
           <div className="tab-content">
-            <div className="content-header">
-              <h2>Student Grades</h2>
-              <p>Track and manage student performance and grades</p>
-            </div>
-            <div className="grades-placeholder">
-              <div className="placeholder-content">
-                <h3>📊 Grades Management</h3>
-                <p>Grade tracking functionality coming soon...</p>
-                <div className="placeholder-features">
-                  <div className="feature-item">📝 Assignment Grades</div>
-                  <div className="feature-item">📈 Progress Tracking</div>
-                  <div className="feature-item">📋 Report Cards</div>
+            <div className="secondary-nav">
+              <div className="secondary-nav-inner">
+                <h2>Student Grades</h2>
+                <div className="nav-controls">
+                  <div className="class-selector">
+                    <select
+                      value={selectedGradeClass || ''}
+                      onChange={(e) => setSelectedGradeClass(e.target.value ? parseInt(e.target.value) : null)}
+                    >
+                      <option value="">Select a Class</option>
+                      {classes.map(cls => (
+                        <option key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
+            </div>
+            <div className="content-area">
+              {selectedGradeClass ? (
+                <div className="grades-container">
+                  {loadingGrades ? (
+                    <div className="loading-state">Loading grades...</div>
+                  ) : gradesData ? (
+                    <div className="grades-table-container">
+                      <table className="grades-table">
+                        <thead>
+                          <tr>
+                            <th className="student-name-header">Student</th>
+                            {gradesData.assignments.map(assignment => (
+                              <th key={assignment.id} className="assignment-header">
+                                <div className="assignment-header-content">
+                                  <div className="assignment-name">{assignment.name}</div>
+                                  <div className="assignment-points">({assignment.max_points} pts)</div>
+                                </div>
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {gradesData.students.map(student => (
+                            <tr key={student.id} className="grade-row">
+                              <td className="student-name-cell">{student.name}</td>
+                              {gradesData.assignments.map(assignment => {
+                                const grade = student.grades[assignment.id];
+                                return (
+                                  <td key={assignment.id} className="grade-cell">
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      max={assignment.max_points}
+                                      step="0.1"
+                                      value={grade?.points_earned ?? ''}
+                                      onChange={(e) => {
+                                        const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                                        if (grade?.id) {
+                                          updateGrade(grade.id, value);
+                                        }
+                                      }}
+                                      className="grade-input"
+                                      placeholder="-"
+                                    />
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="error-state">
+                      {error || 'No grades data available'}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="grades-placeholder">
+                  <div className="placeholder-content">
+                    <h3>📊 Grades Management</h3>
+                    <p>Please select a class above to view and manage grades.</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         );
@@ -337,12 +680,16 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
     <div className="dashboard">
       <div className="dashboard-header">
         <div className="header-content">
-          <h1>LMS Dashboard</h1>
-          <p>Welcome back, {currentUser.name}!</p>
+          <h1>LMS</h1>
         </div>
-        <button onClick={onLogout} className="logout-button">
-          Logout
-        </button>
+                  <div className="header-actions">
+            <button onClick={toggleTheme} className="theme-toggle-button">
+              {isDark ? '🌙' : '☀️'}
+            </button>
+          <button onClick={onLogout} className="logout-button">
+            Logout
+          </button>
+        </div>
       </div>
 
       <div className="dashboard-navigation">
@@ -362,7 +709,7 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
         </div>
       </div>
 
-      <div className="dashboard-content">
+      <div className="dashboard-main">
         {renderTabContent()}
       </div>
     </div>
