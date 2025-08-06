@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
-import { AttendanceRow, AttendanceResponse, Class, User } from '../types';
+import { AttendanceRow, Class, User } from '../types';
 
 interface AttendanceManagerProps {
   currentUser: User;
@@ -35,21 +35,21 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
       if (!response.ok) {
         throw new Error('Failed to fetch attendance');
       }
-      const data: AttendanceResponse = await response.json();
+      const data: AttendanceRow[] = await response.json();
       
       // Check if attendance is verified for this date
-      const verified = data.attendance.some(row => row.record_id);
+      const verified = Array.isArray(data) && data.some(row => row.id);
       setIsVerified(verified);
       
       // If not verified, set all students to 'present' by default
       if (!verified) {
-        const defaultAttendance = data.attendance.map(row => ({
+        const defaultAttendance = data.map(row => ({
           ...row,
           status: row.status || 'present'
         }));
         setAttendance(defaultAttendance);
       } else {
-        setAttendance(data.attendance);
+        setAttendance(data);
       }
       
       setError(null);

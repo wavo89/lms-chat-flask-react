@@ -15,20 +15,12 @@ export interface StudentsResponse {
 }
 
 export interface AttendanceRow {
+  id: number | null;
   student_id: number;
   student_student_id: string;
   name: string;
   email: string;
   status: string;
-  record_id?: number;
-}
-
-export interface AttendanceResponse {
-  date: string;
-  class_id?: number;
-  class_name?: string;
-  attendance: AttendanceRow[];
-  count: number;
 }
 
 export interface Class {

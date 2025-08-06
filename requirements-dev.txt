@@ -1,0 +1,11 @@
+# Python linting/formatting
+flake8
+black
+pylint
+
+# Testing tools (already added)
+pytest
+pytest-flask
+factory-boy
+coverage
+pytest-cov 

@@ -41,8 +41,9 @@ def get_attendance():
             attendance_data.append({
                 'id': record.id if record else None,
                 'student_id': student.id,
-                'student_name': student.name,
+                'name': student.name,  # Changed from 'student_name' to 'name'
                 'student_student_id': student.student_id,
+                'email': student.email,  # Added email field
                 'date': attendance_date,
                 'status': record.status if record else 'present',
                 'class_id': class_id
