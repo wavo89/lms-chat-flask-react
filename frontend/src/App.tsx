@@ -40,7 +40,7 @@ function App() {
       });
       if (response.ok) {
         const data = await response.json();
-        setCurrentUser(data.user);
+        setCurrentUser(data);
         setIsAuthenticated(true);
       }
     } catch (err) {

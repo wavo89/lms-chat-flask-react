@@ -1,0 +1,222 @@
+/* Shared Component Styles */
+
+/* Common Form Elements */
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.submit-button, .cancel-button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.submit-button {
+  background: var(--color-primary);
+  color: white;
+  border: 1px solid var(--color-primary);
+}
+
+.submit-button:hover:not(:disabled) {
+  background: var(--color-primary-dark);
+  transform: translateY(-1px);
+}
+
+.submit-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cancel-button {
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+}
+
+.cancel-button:hover {
+  background: var(--color-panel-background);
+}
+
+/* Common Status Badges */
+.status-badge, .priority-badge, .questions-badge, .enrollment-badge {
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-badge.published { background-color: #4CAF50; }
+.status-badge.draft { background-color: #9E9E9E; }
+.status-badge.active { background-color: #4CAF50; }
+.status-badge.inactive { background-color: #f44336; }
+
+.priority-badge.low { background-color: #4CAF50; }
+.priority-badge.medium { background-color: #FF9800; }
+.priority-badge.high { background-color: #f44336; }
+.priority-badge.urgent { background-color: #9C27B0; }
+
+.questions-badge { background-color: #2196F3; }
+.enrollment-badge { background-color: #FF9800; }
+
+/* Common Loading and Error States */
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  color: var(--color-text-secondary);
+  font-size: 1rem;
+}
+
+.error-message {
+  color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.no-data {
+  text-align: center;
+  color: var(--color-text-secondary);
+  padding: 2rem;
+  background: var(--color-panel-background);
+  border-radius: 6px;
+  border: 1px dashed var(--color-border);
+  font-size: 0.875rem;
+}
+
+/* Common Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--color-text-primary);
+}
+
+.close-modal-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1.25rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+}
+
+.close-modal-button:hover {
+  background: var(--color-panel-background);
+}
+
+.modal-content {
+  padding: 1.5rem;
+}
+
+/* Common Grid Layouts */
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background: var(--color-card-background);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.card-title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: 1.1rem;
+  flex: 1;
+}
+
+.card-badges {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.card-description {
+  color: var(--color-text-secondary);
+  margin: 0 0 1rem 0;
+  line-height: 1.5;
+}
+
+.card-meta {
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+}
+
+.card-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Common Button Groups */
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.icon-button {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.5rem;
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+}
+
+.icon-button:hover {
+  background: var(--color-panel-background);
+  color: var(--color-text-primary);
+} 
