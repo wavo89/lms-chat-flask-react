@@ -124,23 +124,28 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
   };
 
   const handleStudentInfoClick = (student: AttendanceRow) => {
-    setSelectedStudent(student);
+    // If clicking the same student, unselect them
+    if (selectedStudent?.student_id === student.student_id) {
+      setSelectedStudent(null);
+    } else {
+      setSelectedStudent(student);
+    }
   };
 
   const getStatusDisplay = (status: string) => {
     switch (status) {
       case 'present':
-        return { letter: 'P', color: theme.statusPresent };
+        return { letter: 'P', color: theme.statusPresent, className: 'status-present' };
       case 'absent':
-        return { letter: 'A', color: theme.statusAbsent };
+        return { letter: 'A', color: theme.statusAbsent, className: 'status-absent' };
       case 'tardy':
-        return { letter: 'T', color: theme.statusTardy };
+        return { letter: 'T', color: theme.statusTardy, className: 'status-tardy' };
       case 'excused':
-        return { letter: 'E', color: theme.statusExcused };
+        return { letter: 'E', color: theme.statusExcused, className: 'status-excused' };
       case '-':
-        return { letter: '-', color: theme.statusUnset };
+        return { letter: '-', color: theme.statusUnset, className: 'status-unknown' };
       default:
-        return { letter: '-', color: theme.statusUnset };
+        return { letter: '-', color: theme.statusUnset, className: 'status-unknown' };
     }
   };
 
@@ -240,8 +245,7 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
                             title="Click to change status"
                           >
                             <span 
-                              className="status-letter"
-                              style={{ color: statusDisplay.color }}
+                              className={`status-letter ${statusDisplay.className}`}
                             >
                               {statusDisplay.letter}
                             </span>

@@ -11,6 +11,7 @@ const GradesManager: React.FC<GradesManagerProps> = ({ currentUser, classes }) =
   const [gradesData, setGradesData] = useState<GradesResponse | null>(null);
   const [loadingGrades, setLoadingGrades] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [originalGradesRef, setOriginalGradesRef] = useState<GradesResponse | null>(null);
 
   const API_BASE = process.env.NODE_ENV === 'development' ? '' : 'http://localhost:5001';
 
@@ -41,10 +42,12 @@ const GradesManager: React.FC<GradesManagerProps> = ({ currentUser, classes }) =
       }
       const data: GradesResponse = await response.json();
       setGradesData(data);
+      setOriginalGradesRef(JSON.parse(JSON.stringify(data))); // Deep copy for original reference
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch grades');
       setGradesData(null);
+      setOriginalGradesRef(null);
     } finally {
       setLoadingGrades(false);
     }
@@ -83,13 +86,62 @@ const GradesManager: React.FC<GradesManagerProps> = ({ currentUser, classes }) =
         }),
       });
 
-              if (!response.ok) {
-          throw new Error('Failed to update grade');
-        }
+      if (!response.ok) {
+        throw new Error('Failed to update grade');
+      }
 
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update grade');
+      // Revert local state on error
+      if (selectedGradeClass !== null) {
+        await fetchGrades(selectedGradeClass);
+      }
+    }
+  };
+
+  const createGrade = async (studentId: number, assignmentId: number, pointsEarned: number | null) => {
+    try {
+      const response = await fetch(`${API_BASE}/api/grades`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          student_id: studentId,
+          assignment_id: assignmentId,
+          points_earned: pointsEarned
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create grade');
+      }
+
+      const newGrade = await response.json();
+      
+      // Update local state with the new grade
+      if (gradesData) {
+        const updatedGradesData = { ...gradesData };
+        updatedGradesData.students = updatedGradesData.students.map(student => {
+          if (student.id === studentId) {
+            return {
+              ...student,
+              grades: {
+                ...student.grades,
+                [assignmentId]: newGrade
+              }
+            };
+          }
+          return student;
+        });
+        setGradesData(updatedGradesData);
+      }
+
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create grade');
       // Revert local state on error
       if (selectedGradeClass !== null) {
         await fetchGrades(selectedGradeClass);
@@ -144,25 +196,75 @@ const GradesManager: React.FC<GradesManagerProps> = ({ currentUser, classes }) =
                         <td className="student-name-cell">{student.name}</td>
                         {gradesData.assignments.map(assignment => {
                           const grade = student.grades[assignment.id];
+                          // Get the original database value from our reference
+                          const originalGrade = originalGradesRef?.students.find(s => s.id === student.id)?.grades[assignment.id];
+                          const originalPoints = originalGrade?.points_earned;
+                          
                           return (
                             <td key={assignment.id} className="grade-cell">
-                                                          <input
+                              <input
                               type="number"
                               min="0"
                               max="100"
-                              step="1"
+                              step="0.1"
                               value={grade?.points_earned ?? ''}
+                              onChange={(e) => {
+                                // Allow real-time editing without triggering API calls
+                                const value = e.target.value;
+                                if (gradesData) {
+                                  const updatedGradesData = { ...gradesData };
+                                  updatedGradesData.students = updatedGradesData.students.map(currentStudent => {
+                                    if (currentStudent.id === student.id) {
+                                      const existingGrade = currentStudent.grades[assignment.id];
+                                      return {
+                                        ...currentStudent,
+                                        grades: {
+                                          ...currentStudent.grades,
+                                          [assignment.id]: {
+                                            ...existingGrade,
+                                            points_earned: value === '' ? undefined : parseFloat(value)
+                                          }
+                                        }
+                                      };
+                                    }
+                                    return currentStudent;
+                                  });
+                                  setGradesData(updatedGradesData);
+                                }
+                              }}
                               onBlur={(e) => {
-                                const value = e.target.value === '' ? null : parseInt(e.target.value);
+                                console.log('onBlur triggered for student:', student.name, 'assignment:', assignment.name);
+                                console.log('Input value:', e.target.value);
+                                console.log('Original points from database:', originalPoints);
+                                
+                                const value = e.target.value === '' ? null : parseFloat(e.target.value);
                                 // Ensure valid number
-                                const numValue = value !== null && !isNaN(value) ? value : null;
+                                const numValue = value !== null && !isNaN(value) ? Math.round(value) : null;
+                                console.log('Processed numValue:', numValue);
+                                
                                 // Validate range
                                 if (numValue !== null && (numValue < 0 || numValue > 100)) {
-                                  e.target.value = grade?.points_earned?.toString() ?? '';
+                                  console.log('Invalid range, reverting');
+                                  e.target.value = originalPoints?.toString() ?? '';
                                   return;
                                 }
-                                if (grade?.id && numValue !== grade?.points_earned) {
-                                  updateGrade(grade.id, numValue);
+                                
+                                // Compare with original database value
+                                const originalValue = originalPoints ? Math.round(originalPoints) : null;
+                                console.log('Original value from DB:', originalValue, 'New value:', numValue);
+                                
+                                // Only proceed if value actually changed
+                                if (numValue !== originalValue) {
+                                  console.log('Value changed, saving...');
+                                  if (grade?.id) {
+                                    console.log('Updating existing grade with ID:', grade.id);
+                                    updateGrade(grade.id, numValue);
+                                  } else {
+                                    console.log('Creating new grade for student:', student.id, 'assignment:', assignment.id);
+                                    createGrade(student.id, assignment.id, numValue);
+                                  }
+                                } else {
+                                  console.log('No change detected, not saving');
                                 }
                               }}
                               onKeyDown={(e) => {

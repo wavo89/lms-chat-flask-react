@@ -1624,15 +1624,53 @@
 
 .status-cell.clickable {
   text-align: center;
+  width: 80px;
+  max-width: 80px;
 }
 
 .attendance-row.selected {
-  background-color: var(--color-text-secondary) !important;
-  color: var(--color-background);
+  background-color: #f0f0f0 !important;
+  color: var(--color-text-primary);
 }
 
 .attendance-row.selected .clickable:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.status-letter {
+  display: inline-block;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  text-align: center;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.status-letter.status-present {
+  background-color: rgba(34, 197, 94, 0.3);
+  color: white;
+}
+
+.status-letter.status-absent {
+  background-color: rgba(239, 68, 68, 0.3);
+  color: white;
+}
+
+.status-letter.status-tardy {
+  background-color: rgba(245, 158, 11, 0.3);
+  color: white;
+}
+
+.status-letter.status-excused {
+  background-color: rgba(59, 130, 246, 0.3);
+  color: white;
+}
+
+.status-letter.status-unknown {
+  background-color: transparent;
+  color: var(--color-text-secondary);
 }
 
 .bulk-status-controls {
@@ -1702,10 +1740,26 @@
 }
 
 [data-theme="dark"] .attendance-row.selected {
-  background-color: #4a4a4a !important;
+  background-color: #3a3a3a !important;
   color: #e0e0e0;
 }
 
 [data-theme="dark"] .attendance-row.selected .clickable:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .status-letter.status-present {
+  background-color: rgba(34, 197, 94, 0.4);
+}
+
+[data-theme="dark"] .status-letter.status-absent {
+  background-color: rgba(239, 68, 68, 0.4);
+}
+
+[data-theme="dark"] .status-letter.status-tardy {
+  background-color: rgba(245, 158, 11, 0.4);
+}
+
+[data-theme="dark"] .status-letter.status-excused {
+  background-color: rgba(59, 130, 246, 0.4);
 } 
