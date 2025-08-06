@@ -14,6 +14,13 @@ const GradesManager: React.FC<GradesManagerProps> = ({ currentUser, classes }) =
 
   const API_BASE = process.env.NODE_ENV === 'development' ? '' : 'http://localhost:5001';
 
+  // Set first class as default when component mounts
+  useEffect(() => {
+    if (classes.length > 0 && selectedGradeClass === null) {
+      setSelectedGradeClass(classes[0].id);
+    }
+  }, [classes, selectedGradeClass]);
+
   useEffect(() => {
     // Fetch grades when grade class changes
     if (selectedGradeClass) {

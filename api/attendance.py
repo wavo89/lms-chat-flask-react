@@ -45,7 +45,7 @@ def get_attendance():
                 'student_student_id': student.student_id,
                 'email': student.email,  # Added email field
                 'date': attendance_date,
-                'status': record.status if record else 'present',
+                'status': record.status if record else '-',
                 'class_id': class_id
             })
         

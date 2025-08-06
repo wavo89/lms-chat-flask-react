@@ -13,7 +13,10 @@ import ClassroomManager from './ClassroomManager';
 
 const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
   const { isDark, toggleTheme } = useTheme();
-  const [activeTab, setActiveTab] = useState('attendance');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Restore last active tab from localStorage
+    return localStorage.getItem('lms-active-tab') || 'attendance';
+  });
   const [classes, setClasses] = useState<Class[]>([]);
 
   const API_BASE = process.env.NODE_ENV === 'development' ? '' : 'http://localhost:5001';
@@ -23,6 +26,11 @@ const Dashboard: React.FC<DashboardProps> = ({ currentUser, onLogout }) => {
     // Fetch classes when component mounts
     fetchClasses();
   }, []);
+
+  // Save active tab to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('lms-active-tab', activeTab);
+  }, [activeTab]);
 
   const fetchClasses = async () => {
     try {

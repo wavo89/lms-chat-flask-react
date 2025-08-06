@@ -17,6 +17,7 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
   const [isVerifying, setIsVerifying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [bulkStatus, setBulkStatusSelection] = useState('present');
 
   const API_BASE = process.env.NODE_ENV === 'development' ? '' : 'http://localhost:5001';
 
@@ -41,11 +42,11 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
       const verified = Array.isArray(data) && data.some(row => row.id);
       setIsVerified(verified);
       
-      // If not verified, set all students to 'present' by default
+      // If not verified, set all students to '-' (unknown) by default
       if (!verified) {
         const defaultAttendance = data.map(row => ({
           ...row,
-          status: row.status || 'present'
+          status: row.status || '-'
         }));
         setAttendance(defaultAttendance);
       } else {
@@ -61,7 +62,7 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
   };
 
   const toggleAttendanceStatus = (studentId: number) => {
-    const statusCycle = ['present', 'absent', 'tardy', 'excused'];
+    const statusCycle = ['present', 'absent', 'tardy', 'excused', '-'];
     
     setAttendance(prev => prev.map(row => {
       if (row.student_id === studentId) {
@@ -78,6 +79,13 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
       }
       return row;
     }));
+  };
+
+  const setBulkStatus = async () => {
+    setAttendance(prev => prev.map(row => ({
+      ...row,
+      status: bulkStatus
+    })));
   };
 
   const verifyAttendance = async () => {
@@ -129,6 +137,8 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
         return { letter: 'T', color: theme.statusTardy };
       case 'excused':
         return { letter: 'E', color: theme.statusExcused };
+      case '-':
+        return { letter: '-', color: theme.statusUnset };
       default:
         return { letter: '-', color: theme.statusUnset };
     }
@@ -161,12 +171,32 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
             </div>
+            <div className="bulk-status-controls">
+              <button 
+                className="bulk-status-button"
+                onClick={setBulkStatus}
+                title="Apply selected status to all students"
+              >
+                Set All To:
+              </button>
+              <select 
+                className="bulk-status-select"
+                value={bulkStatus}
+                onChange={(e) => setBulkStatusSelection(e.target.value)}
+              >
+                <option value="present">Present</option>
+                <option value="absent">Absent</option>
+                <option value="tardy">Tardy</option>
+                <option value="excused">Excused</option>
+                <option value="-">Unknown (-)</option>
+              </select>
+            </div>
             <button 
               className={`verify-button ${isVerified ? 'verified' : ''}`}
               onClick={verifyAttendance}
               disabled={isVerified || isVerifying}
             >
-              {isVerifying ? 'Verifying...' : isVerified ? 'Verified ✓' : 'Verify'}
+              {isVerifying ? 'Saving...' : isVerified ? 'Active' : 'Save Initial'}
             </button>
           </div>
         </div>
@@ -186,40 +216,35 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
                     <tr>
                       <th>Name</th>
                       <th>Status</th>
-                      <th>Info</th>
                     </tr>
                   </thead>
                   <tbody>
                     {attendance.map((row) => {
                       const statusDisplay = getStatusDisplay(row.status);
+                      const isSelected = selectedStudent?.student_id === row.student_id;
                       return (
                         <tr 
                           key={row.student_id}
-                          className="attendance-row"
-                          onClick={() => toggleAttendanceStatus(row.student_id)}
+                          className={`attendance-row ${isSelected ? 'selected' : ''}`}
                         >
-                          <td className="name-cell">
+                          <td 
+                            className="name-cell clickable"
+                            onClick={() => handleStudentInfoClick(row)}
+                            title="Click to view student info"
+                          >
                             {row.name}
                           </td>
-                          <td className="status-cell">
+                          <td 
+                            className="status-cell clickable"
+                            onClick={() => toggleAttendanceStatus(row.student_id)}
+                            title="Click to change status"
+                          >
                             <span 
                               className="status-letter"
                               style={{ color: statusDisplay.color }}
                             >
                               {statusDisplay.letter}
                             </span>
-                          </td>
-                          <td className="info-cell">
-                            <button 
-                              className="info-button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleStudentInfoClick(row);
-                              }}
-                              title="View student info"
-                            >
-                              <span className="info-icon">ⓘ</span>
-                            </button>
                           </td>
                         </tr>
                       );
@@ -230,12 +255,12 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
             )}
           </div>
 
-          {selectedStudent && (
-            <div className="student-info-panel">
-              <div className="info-panel-header">
-                <h3>Student Information</h3>
-              </div>
-              <div className="info-panel-content">
+          <div className="student-info-panel">
+            <div className="info-panel-header">
+              <h3>Student Information</h3>
+            </div>
+            <div className="info-panel-content">
+              {selectedStudent ? (
                 <div className="student-details">
                   <div className="detail-item">
                     <label>Name</label>
@@ -250,15 +275,13 @@ const AttendanceManager: React.FC<AttendanceManagerProps> = ({ currentUser, clas
                     <span>{selectedStudent.email}</span>
                   </div>
                 </div>
-                <button 
-                  className="close-panel-button"
-                  onClick={() => setSelectedStudent(null)}
-                >
-                  Close
-                </button>
-              </div>
+              ) : (
+                <div className="no-student-selected">
+                  <p>Click on a student name to view their information</p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

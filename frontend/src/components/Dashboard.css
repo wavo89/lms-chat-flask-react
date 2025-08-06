@@ -1606,4 +1606,106 @@
   background: var(--color-panel-background);
   border-radius: 6px;
   border: 1px dashed var(--color-border);
+}
+
+/* Attendance enhancements */
+.clickable {
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.clickable:hover {
+  background-color: var(--color-background-secondary);
+}
+
+.name-cell.clickable {
+  font-weight: 500;
+}
+
+.status-cell.clickable {
+  text-align: center;
+}
+
+.attendance-row.selected {
+  background-color: var(--color-text-secondary) !important;
+  color: var(--color-background);
+}
+
+.attendance-row.selected .clickable:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.bulk-status-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bulk-status-button {
+  padding: 8px 12px;
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  background: var(--color-primary);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.bulk-status-button:hover {
+  background: var(--color-primary-hover);
+  border-color: var(--color-primary-hover);
+}
+
+.bulk-status-select {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-background);
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 120px;
+}
+
+.bulk-status-select:hover {
+  border-color: var(--color-primary);
+  background: var(--color-background-secondary);
+}
+
+.bulk-status-select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.no-student-selected {
+  text-align: center;
+  color: var(--color-text-secondary);
+  padding: 2rem;
+  font-style: italic;
+}
+
+/* Dark theme overrides for bulk status */
+[data-theme="dark"] .bulk-status-select {
+  background: #1a1a1a;
+  border-color: #555;
+  color: #e0e0e0;
+}
+
+[data-theme="dark"] .bulk-status-select:hover {
+  background: #2a2a2a;
+  border-color: #007acc;
+}
+
+[data-theme="dark"] .attendance-row.selected {
+  background-color: #4a4a4a !important;
+  color: #e0e0e0;
+}
+
+[data-theme="dark"] .attendance-row.selected .clickable:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 } 
